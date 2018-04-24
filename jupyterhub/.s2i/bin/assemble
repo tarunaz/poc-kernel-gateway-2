@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -x
+
+set -eo pipefail
+
+# Run original S2I builder script.
+
+/opt/app-root/builder/assemble
+
+# Activate JupyterHub extension for JupyterLab.
+
+jupyter labextension install @jupyterlab/hub-extension@^0.8.0
+
+npm cache clean
+
+rm -rf $HOME/.cache/yarn
+rm -rf $HOME/.node-gyp
+
+# Enable nb2kg kernel extension.
+
+jupyter serverextension enable --py nb2kg --sys-prefix
+
+# Install oc command line client and script for accessing remote pods.
+
+DOWNLOADS=https://mirror.openshift.com
+VERSION=${OC_VERSION:-3.7.40}
+TARBALL=$DOWNLOADS/pub/openshift-v3/clients/${VERSION}/linux/oc.tar.gz
+
+curl -s -o /tmp/oc.tar.gz $TARBALL && \
+    tar -C /opt/app-root/bin -xzvf /tmp/oc.tar.gz && \
+    rm /tmp/oc.tar.gz
+
+mv /opt/app-root/src/create-remote-terminal /opt/app-root/bin/
+
+# Fix up permissions.
+
+fix-permissions /opt/app-root
